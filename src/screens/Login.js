@@ -1,11 +1,17 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
-import Login from "./src/screens/Login.js";
+import Form from "../components/Form.js";
 
-export default function App() {
+export default function Login() {
   return (
     <View style={styles.container}>
-      <Login/>
+
+      <Form
+        h1="PetSuam"
+        h2="Login"
+        h3="Bem-vindos ao PetSuam"
+      />
+
       <StatusBar style="auto" />
     </View>
   );
@@ -15,8 +21,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    flexDirection: "row",
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'center',
     padding: 20, 
   },
