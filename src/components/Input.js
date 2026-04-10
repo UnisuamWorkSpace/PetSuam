@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     borderBlockColor: "black",
     borderWidth: 2,
     padding: 5,
-    borderRadius: 10
+    borderRadius: 10,
   }
   
 });

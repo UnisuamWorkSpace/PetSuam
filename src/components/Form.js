@@ -40,8 +40,9 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     flex: 1,
-    alignItems: "center"
-  }
+    alignItems: "center",
+  },
+  
 
 
 });
