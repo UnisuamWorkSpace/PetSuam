@@ -17,7 +17,7 @@ const styles = StyleSheet.create({
   inputBox: {
     borderBlockColor: "black",
     borderWidth: 2,
-    padding: 5,
+    padding: 8,
     borderRadius: 10
   }
   
