@@ -7,7 +7,7 @@ export default function Cadastro() {
   return (
     <View style={styles.container}>
       <ImageBackground
-        source={require('../assets/background1.png')} // Local image
+        source={require('../assets/background4.png')} // Local image
         resizeMode="cover" // Options: cover, contain, stretch, repeat, center
         style={styles.image}
         >
