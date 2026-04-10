@@ -34,8 +34,8 @@ const styles = StyleSheet.create({
   },
   h3: {
     fontSize: 18,
-    color: "black,
-    marginBottom: 50
+    color: "black",
+    marginBottom: 50,
   },
   buttonContainer: {
     marginTop: 10,
