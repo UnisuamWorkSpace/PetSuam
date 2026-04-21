@@ -13,11 +13,42 @@ import {
 import { RadioButton } from 'react-native-paper';
 import Form from "../components/Form.js";
 import Input from "../components/Input.js";
+import { db } from "../firebase/config";
+import { collection, addDoc } from "firebase/firestore";
 
 
 export default function Cadastro() {
   const [value, setValue] = React.useState('macho');
   const [especie, setEspecie] = React.useState('cachorro');
+  const [nome, setNome] = React.useState("");
+  const [telefone, setTelefone] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [senha, setSenha] = React.useState("");
+  const [confirmarSenha, setConfirmarSenha] = React.useState("");
+  const [nomePet, setNomePet] = React.useState("");
+  const [raca, setRaca] = React.useState("");
+
+  const cadastrar = async () => {
+  try {
+    await addDoc(collection(db, "usuarios"), {
+      nome,
+      telefone,
+      email,
+      senha,
+      pet: {
+        nome: nomePet,
+        especie,
+        raca,
+        sexo: value
+      },
+      criadoEm: new Date()
+    });
+
+    console.log("Cadastro realizado!");
+  } catch (error) {
+    console.log("Erro:", error);
+  }
+};
 
   return (
 
@@ -41,18 +72,19 @@ export default function Cadastro() {
             btnPlaceholder="Enviar"
             screen1= "Login"
             screen1Text="Já tem conta ? Entrar"
+            onPress={cadastrar}
           >
      
-            <Input placeholder="Nome Completo" autoCapitalize="words" />
-            <Input placeholder="Número de Telefone" keyboardType="phone-pad" />
-            <Input placeholder="Email" keyboardType="email-address" autoCapitalize="none" />
-            <Input placeholder="Senha" secureTextEntry={true} />
-            <Input placeholder="Confirmar Senha" secureTextEntry={true} />
+            <Input placeholder="Nome Completo" autoCapitalize="words" onChangeText={setNome} />
+            <Input placeholder="Número de Telefone" keyboardType="phone-pad" onChangeText={setTelefone} />
+            <Input placeholder="Email" keyboardType="email-address" autoCapitalize="none" onChangeText={setEmail} />
+            <Input placeholder="Senha" secureTextEntry={true} onChangeText={setSenha}/>
+            <Input placeholder="Confirmar Senha" secureTextEntry={true} onChangeText={setConfirmarSenha}/>
 
             <Text style={styles.h2}>Cadastro Pet</Text>
 
         
-            <Input placeholder="Nome do Pet" autoCapitalize="words" />
+            <Input placeholder="Nome do Pet" autoCapitalize="words" onChangeText={setNomePet}/>
             <RadioButton.Group
                 onValueChange={setEspecie}
                 value={especie}
@@ -76,7 +108,8 @@ export default function Cadastro() {
                 </TouchableOpacity>
                 </View>
               </RadioButton.Group>
-            <Input placeholder="Raça" />
+
+            <Input placeholder="Raça" onChangeText={setRaca} />
 
             
              <RadioButton.Group

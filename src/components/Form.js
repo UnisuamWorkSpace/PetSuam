@@ -1,7 +1,7 @@
 import { TextInput, View, Text, StyleSheet, Button,Linking, TouchableOpacity} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
-export default function Form({h1, h2, h3, children, btnPlaceholder, screen1, screen1Text, screen2, screen2Text}) {
+export default function Form({h1, h2, h3, children, btnPlaceholder, screen1, screen1Text, screen2, screen2Text, onPress}) {
   const navigation = useNavigation();
   return (
         <View style={styles.formContainer}>
@@ -15,7 +15,7 @@ export default function Form({h1, h2, h3, children, btnPlaceholder, screen1, scr
             
               
               <View style={styles.buttonContainer}>
-                <Button  title={btnPlaceholder} onPress={() => {}} />
+                <Button  title={btnPlaceholder} onPress={onPress} />
               </View>
               
               <View style={styles.screen}>
@@ -25,11 +25,13 @@ export default function Form({h1, h2, h3, children, btnPlaceholder, screen1, scr
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => navigation.navigate(screen2)}>
-                  <Text style={styles.screenText}>
-                    {screen2Text}
-                  </Text>
-                </TouchableOpacity>
+                {screen2 && (
+                  <TouchableOpacity onPress={() => navigation.navigate(screen2)}>
+                    <Text style={styles.screenText}>
+                      {screen2Text}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
         </View>
