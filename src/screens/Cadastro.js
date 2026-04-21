@@ -6,10 +6,12 @@ import {
   StyleSheet, 
   View, 
   ImageBackground, 
-  Text 
+  Text,
+  TouchableOpacity
 } from 'react-native';
 import Form from "../components/Form.js";
 import Input from "../components/Input.js";
+
 
 export default function Cadastro() {
   return (
@@ -32,6 +34,8 @@ export default function Cadastro() {
             h2="Cadastro"
             h3="Crie sua conta no PetSuam"
             btnPlaceholder="Enviar"
+            screen1= "Login"
+            screen1Text="Já tem conta ? Entrar"
           >
      
             <Input placeholder="Nome Completo" autoCapitalize="words" />
@@ -47,6 +51,7 @@ export default function Cadastro() {
             <Input placeholder="Espécie" />
             <Input placeholder="Raça" />
             <Input placeholder="Sexo" />
+            
           </Form>
         </ScrollView>
       </ImageBackground>
@@ -69,7 +74,7 @@ const styles = StyleSheet.create({
     flexGrow: 1, 
     justifyContent: 'center',
     paddingBottom: 40, 
-    paddingTop: 30
+    paddingTop: 40
   },
   h2: {
     fontSize: 22,

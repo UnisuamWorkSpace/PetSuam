@@ -3,7 +3,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View, ImageBackground,TextInput } from 'react-native';
 
-// Import your screens
 import Login from "./src/screens/Login.js";
 import Cadastro from "./src/screens/Cadastro.js";
 
