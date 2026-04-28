@@ -15,9 +15,14 @@ import { RadioButton } from 'react-native-paper';
 import Form from "../components/Form.js";
 import Input from "../components/Input.js";
 import { db } from "../firebase/config";
-import { collection, addDoc } from "firebase/firestore";
 import { TextInputMask } from 'react-native-masked-text';
 import { FontAwesome } from '@expo/vector-icons';
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase/config";
+import { doc, setDoc } from "firebase/firestore";
+import { serverTimestamp } from "firebase/firestore";
+
+
 
 
 export default function Cadastro() {
@@ -37,36 +42,87 @@ export default function Cadastro() {
   const [showConfirmationPassword, setShowConfirmationPassword] = React.useState(false);
 
   const validar = () => {
-  if (nome.length < 5) {
-    setNomeError("Nome precisa ter pelo menos 5 caracteres");
-    return false;
-  }
+  let valido = true;
 
   setNomeError("");
-  return true;
+
+  if (!nome.trim()) {
+    setNomeError("Nome é obrigatório");
+    valido = false;
+  }
+
+  if (!telefone || telefone.length < 14) {
+    Alert.alert("Erro", "Telefone inválido");
+    valido = false;
+  }
+
+  const emailRegex = /\S+@\S+\.\S+/;
+  if (!emailRegex.test(email)) {
+    Alert.alert("Erro", "Email inválido");
+    valido = false;
+  }
+
+  if (senha.length < 6) {
+    Alert.alert("Erro", "A senha deve ter pelo menos 6 caracteres");
+    valido = false;
+  }
+
+  if (senha !== confirmarSenha) {
+    Alert.alert("Erro", "As senhas não coincidem");
+    valido = false;
+  }
+
+  if (!nomePet.trim()) {
+    Alert.alert("Erro", "Nome do pet é obrigatório");
+    valido = false;
+  }
+
+  return valido;
 };
  
 
   const cadastrar = async () => {
     if(validar()) {
-  try {
-    await addDoc(collection(db, "usuarios"), {
-      nome,
-      telefone,
-      email,
-      senha,
-      pet: {
-        nome: nomePet,
-        especie,
-        raca,
-        sexo: value,
-        castrado: castrado
-      },
-      criadoEm: new Date()
-    });
 
-    setValue("");
-    setEspecie("");
+    const emailNormalizado = email.toLowerCase().trim();
+    const nomeNormalizado = nome.trim();
+    const nomePetNormalizado = nomePet.trim();
+
+    
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        emailNormalizado,
+        senha
+      );
+
+      //previne de enviar um usuario "vazio"
+      try {
+        //cria um usuario por documento pra facilitar as consultas
+      await setDoc(doc(db, "usuarios", userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        nome: nomeNormalizado,
+        telefone,
+        email: emailNormalizado,
+        pet: {
+          nome: nomePetNormalizado,
+          especie,
+          raca,
+          sexo: value,
+          castrado: castrado
+        },
+        //usa o tempo do firebase pra evitar problemas de consistencia em horarios
+        criadoEm: serverTimestamp()
+      });
+    }catch(firestoreError) {
+      await userCredential.user.delete();
+      throw firestoreError;
+    }
+
+
+    setValue("macho");
+    setEspecie("cachorro");
     setNome("");
     setTelefone("");
     setEmail("");
@@ -74,9 +130,15 @@ export default function Cadastro() {
     setConfirmarSenha("");
     setNomePet("");
     setRaca("");
+    setCastrado("nao");
     Alert.alert('Status do Cadastro:', 'Cadastro realizado!');
   } catch (error) {
-    Alert.alert('Status do Cadastro:', 'Cadastro não realizado. Erro: ', error.message);
+     if (error.code === "auth/email-already-in-use") {
+        Alert.alert("Erro", "Este email já está em uso.");
+        return;
+      }
+
+  Alert.alert("Erro", error.message);
   }
   }
 };
