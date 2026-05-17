@@ -11,21 +11,17 @@ import {
   TouchableOpacity,
   Alert
 } from 'react-native';
-import { RadioButton } from 'react-native-paper';
 import Form from "../components/Form.js";
 import Input from "../components/Input.js";
 import { db } from "../firebase/config";
 import { TextInputMask } from 'react-native-masked-text';
-import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase/config";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, addDoc } from "firebase/firestore"; // Added collection and addDoc
 import { serverTimestamp } from "firebase/firestore";
 
-
-
-
-export default function Cadastro() {
+export default function Cadastro({ navigation }) {
   const [value, setValue] = React.useState('macho');
   const [especie, setEspecie] = React.useState('cachorro');
   const [nome, setNome] = React.useState("");
@@ -36,130 +32,127 @@ export default function Cadastro() {
   const [nomePet, setNomePet] = React.useState("");
   const [raca, setRaca] = React.useState("");
   const [castrado, setCastrado] = React.useState('nao');
+  const [touched, setTouched] = React.useState(false);  
 
   const [errors, setErrors] = React.useState({});
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmationPassword, setShowConfirmationPassword] = React.useState(false);
 
-  const validar = () => {
-  let valido = true;
+  const validarCampo = (campo, valor) => {
+    let mensagem = "";
 
-   const newErrors = {
-    nome: "",
-    telefone: "",
-    email: "",
-    senha: "",
-    confirmarSenha: "",
-    nomePet: "",
-    raca: "",
+    switch(campo) {
+      case "nome":
+        if (!valor.trim()) mensagem = "Nome é obrigatório";
+        break;
+      case "telefone":
+        if (!telefone || telefone.length < 14) mensagem = "Telefone inválido";
+        break;
+      case "email":
+        const emailRegex = /\S+@\S+\.\S+/;
+        if (!emailRegex.test(valor)) mensagem = "Email inválido";
+        break;
+      case "senha":
+        if (valor.length < 6) mensagem = "A senha deve ter pelo menos 6 caracteres";
+        break;
+      case "nomePet":
+        if (!valor.trim()) mensagem = "Nome do pet é obrigatório";
+        break;
+      case "raca":
+        if (!valor.trim()) message = "A raça do pet é obrigatória";
+        break;
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      [campo]: mensagem
+    }));
   };
 
-  if (!nome.trim()) {
-    newErrors.nome = "Nome é obrigatório";
-    valido = false;
-  }
+  const validar = () => {
+    let valido = true;
+    const newErrors = { nome: "", telefone: "", email: "", senha: "", confirmarSenha: "", nomePet: "", raca: "" };
 
-  if (!telefone || telefone.length < 14) {
-    newErrors.telefone = "Telefone inválido";
-    valido = false;
-  }
+    if (!nome.trim()) { newErrors.nome = "Nome é obrigatório"; valido = false; }
+    if (!telefone || telefone.length < 14) { newErrors.telefone = "Telefone inválido"; valido = false; }
+    
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(email)) { newErrors.email = "Email inválido"; valido = false; }
+    if (senha.length < 6) { newErrors.senha = "A senha deve ter pelo menos 6 caracteres"; valido = false; }
+    if (senha !== confirmarSenha) { newErrors.confirmarSenha = "As senhas não coincidem"; valido = false; }
+    if (!nomePet.trim()) { newErrors.nomePet = "Nome do pet é obrigatório"; valido = false; }
+    if (!raca.trim()) { newErrors.raca = "A raça do pet é obrigatória"; valido = false; }
 
-  const emailRegex = /\S+@\S+\.\S+/;
-  if (!emailRegex.test(email)) {
-    newErrors.email = "Email inválido";
-    valido = false;
-  }
-
-  if (senha.length < 6) {
-    newErrors.senha = "A senha deve ter pelo menos 6 caracteres";
-    valido = false;
-  }
-
-  if (senha !== confirmarSenha) {
-    newErrors.confirmarSenha = "As senhas não coincidem";
-    valido = false;
-  }
-
-  if (!nomePet.trim()) {
-    newErrors.nomePet = "Nome do pet é obrigatório";
-    valido = false;
-  }
-
-  if (!raca.trim()) {
-    newErrors.raca = "A raça do pet é obrigatório";
-    valido = false;
-  }
-
-  setErrors(newErrors);
-  return valido;
-};
- 
+    setErrors(newErrors);
+    return valido;
+  };
 
   const cadastrar = async () => {
     if(validar()) {
+      const emailNormalizado = email.toLowerCase().trim();
+      const nomeNormalizado = nome.trim();
+      const nomePetNormalizado = nomePet.trim();
 
-    const emailNormalizado = email.toLowerCase().trim();
-    const nomeNormalizado = nome.trim();
-    const nomePetNormalizado = nomePet.trim();
-
-    
-
-    try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        emailNormalizado,
-        senha
-      );
-
-      //previne de enviar um usuario "vazio"
-      
       try {
-      //cria um usuario por documento pra facilitar as consultas
-      await setDoc(doc(db, "usuarios", userCredential.user.uid), {
-        uid: userCredential.user.uid,
-        nome: nomeNormalizado,
-        telefone,
-        email: emailNormalizado,
-        pet: {
-          nome: nomePetNormalizado,
-          especie,
-          raca,
-          sexo: value,
-          castrado: castrado
-        },
-        //usa o tempo do firebase pra evitar problemas de consistencia em horarios
-        criadoEm: serverTimestamp()
-      });
-    }catch(firestoreError) {
-      await userCredential.user.delete();
-      throw firestoreError;
-    }
+        const userCredential = await createUserWithEmailAndPassword(auth, emailNormalizado, senha);
+        const uid = userCredential.user.uid;
+        
+        try {
+          // 1. Save general profile info to the user's root document
+          await setDoc(doc(db, "usuarios", uid), {
+            uid: uid,
+            nome: nomeNormalizado,
+            telefone,
+            email: emailNormalizado,
+            criadoEm: serverTimestamp()
+          });
 
+          // 2. Save the pet into a scalable subcollection 'usuarios/uid/pets'
+          await addDoc(collection(db, "usuarios", uid, "pets"), {
+            nome: nomePetNormalizado,
+            especie,
+            raca,
+            sexo: value,
+            castrado: castrado,
+            criadoEm: serverTimestamp()
+          });
 
-    setValue("macho");
-    setEspecie("cachorro");
-    setNome("");
-    setTelefone("");
-    setEmail("");
-    setSenha("");
-    setConfirmarSenha("");
-    setNomePet("");
-    setRaca("");
-    setCastrado("nao");
-    Alert.alert('Status do Cadastro:', 'Cadastro realizado!');
-  } catch (error) {
-     if (error.code === "auth/email-already-in-use") {
-        Alert.alert("Erro", "Este email já está em uso.");
-        return;
+        } catch(firestoreError) {
+          // Rollback if anything goes wrong during data saving
+          await userCredential.user.delete();
+          throw firestoreError;
+        }
+
+        setValue("macho");
+        setEspecie("cachorro");
+        setNome("");
+        setTelefone("");
+        setEmail("");
+        setSenha("");
+        setConfirmarSenha("");
+        setNomePet("");
+        setRaca("");
+        setCastrado("nao");
+        
+        Alert.alert('Status do Cadastro:', 'Cadastro realizado com sucesso! 🐾', [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.navigate('Login'); 
+            }
+          }
+        ]);
+      } catch (error) {
+        if (error.code === "auth/email-already-in-use") {
+          Alert.alert("Erro", "Este email já está em uso.");
+          return;
+        }
+        Alert.alert("Erro", error.message);
       }
-
-  Alert.alert("Erro", error.message);
-  }
-  }
-};
+    }
+  };
 
   return (
-
     <KeyboardAvoidingView 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
@@ -178,136 +171,156 @@ export default function Cadastro() {
             h2="Cadastro"
             h3="Crie sua conta no PetSuam"
             btnPlaceholder="Enviar"
-            screen1= "Login"
-            screen1Text="Já tem conta ? Entrar"
+            screen1="Login"
+            screen1Text="Já tem conta? Entrar"
             onPress={cadastrar}
           >
-     
-            <Input placeholder="Nome Completo" maxLength={50} autoCapitalize="words" value={nome} onChangeText={setNome} />
-            {errors.nome && <Text style={styles.errorStyle}>{errors.nome}</Text>}
-            <TextInputMask
-              placeholder='Telefone'
-              type={'cel-phone'}
-              options={{
-                maskType: 'BRL',
-                withDDD: true,
-                dddMask: '(99) '
-              }}
-              value={telefone}
-              onChangeText={setTelefone}
-              style={styles.inputBox}
-            />
-            {errors.telefone && <Text style={styles.errorStyle}>{errors.telefone}</Text>}
-            <Input placeholder="Email" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
-            {errors.email && <Text style={styles.errorStyle}>{errors.email}</Text>}
-
-            <View style={styles.passwordContainer}>
-              <Input placeholder="Senha" maxLength={10} secureTextEntry={!showPassword} value={senha} onChangeText={setSenha} /> 
+            {/* --- SEÇÃO: SEUS DADOS --- */}
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Seus Dados</Text>
               
-              <TouchableOpacity style={styles.seePassword} onPress={() => setShowPassword(!showPassword)}>
-                <FontAwesome 
-                  name = {showPassword ? "eye-slash" : "eye"}
-                  size={30} 
-                  color="black" 
-                />
-              </TouchableOpacity>
+              <Input 
+                placeholder="Nome Completo" 
+                maxLength={50} 
+                autoCapitalize="words" 
+                value={nome} 
+                onChangeText={setNome} 
+                onBlur={() => { setTouched(true); validarCampo("nome", nome); }}
+              />
+              {errors.nome ? <Text style={styles.errorStyle}>{errors.nome}</Text> : null}
+
+              <TextInputMask
+                placeholder='Telefone'
+                type={'cel-phone'}
+                options={{ maskType: 'BRL', withDDD: true, dddMask: '(99) ' }}
+                value={telefone}
+                onChangeText={setTelefone}
+                style={styles.inputBox}
+                placeholderTextColor="#a1a1a1"
+                onBlur={() => { setTouched(true); validarCampo("telefone", telefone); }}
+              />
+              {errors.telefone ? <Text style={styles.errorStyle}>{errors.telefone}</Text> : null}
+
+              <Input 
+                placeholder="Email" 
+                keyboardType="email-address" 
+                autoCapitalize="none" 
+                value={email} 
+                onChangeText={setEmail} 
+                onBlur={() => { setTouched(true); validarCampo("email", email); }}
+              />
+              {errors.email ? <Text style={styles.errorStyle}>{errors.email}</Text> : null}
+
+              <View style={styles.passwordContainer}>
+                <Input 
+                  placeholder="Senha" 
+                  maxLength={10} 
+                  secureTextEntry={!showPassword} 
+                  value={senha} 
+                  onChangeText={setSenha} 
+                  onBlur={() => { setTouched(true); validarCampo("senha", senha); }}
+                /> 
+                <TouchableOpacity style={styles.seePassword} onPress={() => setShowPassword(!showPassword)}>
+                  <FontAwesome name={showPassword ? "eye-slash" : "eye"} size={22} color="#4A5568" />
+                </TouchableOpacity>
+              </View>
+              {errors.senha ? <Text style={styles.errorStyle}>{errors.senha}</Text> : null}
+
+              <View style={styles.passwordContainer}>
+                <Input 
+                  placeholder="Confirmar Senha" 
+                  maxLength={10} 
+                  secureTextEntry={!showConfirmationPassword} 
+                  value={confirmarSenha} 
+                  onChangeText={setConfirmarSenha} 
+                />   
+                <TouchableOpacity style={styles.seePassword} onPress={() => setShowConfirmationPassword(!showConfirmationPassword)}>
+                  <FontAwesome name={showConfirmationPassword ? "eye-slash" : "eye"} size={22} color="#4A5568" />
+                </TouchableOpacity>            
+              </View>
+              {errors.confirmarSenha ? <Text style={styles.errorStyle}>{errors.confirmarSenha}</Text> : null}
             </View>
-            {errors.senha && <Text style={styles.errorStyle}>{errors.senha}</Text>}
 
+            {/* --- SEÇÃO: DADOS DO PET --- */}
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Dados do Pet</Text>
 
-            <View style={styles.passwordContainer}>
-              <Input placeholder="Confirmar Senha" maxLength={10} secureTextEntry={!showConfirmationPassword} value={confirmarSenha} onChangeText={setConfirmarSenha} />   
-              
-              
-              <TouchableOpacity style={styles.seePassword} onPress={() => setShowConfirmationPassword(!showConfirmationPassword)}>
-                <FontAwesome 
-                  name = {showConfirmationPassword ? "eye-slash" : "eye"}
-                  size={30} 
-                  color="black" 
-                />
-              </TouchableOpacity>            
-            </View>
-            {errors.confirmarSenha && <Text style={styles.errorStyle}>{errors.confirmarSenha}</Text>}
-            <Text style={styles.h2}>Cadastro Pet</Text>
+              <Input 
+                placeholder="Nome do Pet" 
+                maxLength={30} 
+                autoCapitalize="words" 
+                value={nomePet} 
+                onChangeText={setNomePet}
+                onBlur={() => { setTouched(true); validarCampo("nomePet", nomePet); }}
+              />
+              {errors.nomePet ? <Text style={styles.errorStyle}>{errors.nomePet}</Text> : null}
 
-        
-            <Input placeholder="Nome do Pet" maxLength={30} autoCapitalize="words" value={nomePet} onChangeText={setNomePet}/>
-            {errors.nomePet && <Text style={styles.errorStyle}>{errors.nomePet}</Text>}
-            <RadioButton.Group
-                onValueChange={setEspecie}
-                value={especie}
-              >
-                <View style={styles.radioContainer}>
-                <Text>Espécie:</Text>
-                <TouchableOpacity
-                  style={styles.radioAlign}
+              {/* Selector de Espécie */}
+              <Text style={styles.labelSelect}>Espécie</Text>
+              <View style={styles.toggleRow}>
+                <TouchableOpacity 
+                  style={[styles.toggleButton, especie === 'cachorro' && styles.toggleButtonActive]}
                   onPress={() => setEspecie('cachorro')}
                 >
-                  <RadioButton value="cachorro" />
-                  <Text>Cachorro</Text>
+                  <MaterialCommunityIcons name="dog" size={20} color={especie === 'cachorro' ? '#FFF' : '#4A5568'} />
+                  <Text style={[styles.toggleText, especie === 'cachorro' && styles.toggleTextActive]}>Cachorro</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.radioAlign}
+                <TouchableOpacity 
+                  style={[styles.toggleButton, especie === 'gato' && styles.toggleButtonActive]}
                   onPress={() => setEspecie('gato')}
                 >
-                  <RadioButton value="gato" />
-                  <Text>Gato</Text>
+                  <MaterialCommunityIcons name="cat" size={20} color={especie === 'gato' ? '#FFF' : '#4A5568'} />
+                  <Text style={[styles.toggleText, especie === 'gato' && styles.toggleTextActive]}>Gato</Text>
                 </TouchableOpacity>
-                </View>
-              </RadioButton.Group>
+              </View>
 
-            <Input placeholder="Raça" maxLength={30}  value={raca} onChangeText={setRaca} />
-            {errors.raca && <Text style={styles.errorStyle}>{errors.raca}</Text>}
+              <Input 
+                placeholder="Raça" 
+                maxLength={30}  
+                value={raca} 
+                onChangeText={setRaca} 
+                onBlur={() => { setTouched(true); validarCampo("raca", raca); }}
+              />
+              {errors.raca ? <Text style={styles.errorStyle}>{errors.raca}</Text> : null}
 
-            
-             <RadioButton.Group
-                onValueChange={setValue}
-                value={value}
-              >
-                <View style={styles.radioContainer}>
-                <Text>Sexo:</Text>
-                <TouchableOpacity
-                  style={styles.radioAlign}
+              {/* Selector de Sexo */}
+              <Text style={styles.labelSelect}>Sexo</Text>
+              <View style={styles.toggleRow}>
+                <TouchableOpacity 
+                  style={[styles.toggleButton, value === 'macho' && styles.toggleButtonActive]}
                   onPress={() => setValue('macho')}
                 >
-                  <RadioButton value="macho" />
-                  <Text>Macho</Text>
+                  <MaterialCommunityIcons name="gender-male" size={20} color={value === 'macho' ? '#FFF' : '#4A5568'} />
+                  <Text style={[styles.toggleText, value === 'macho' && styles.toggleTextActive]}>Macho</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.radioAlign}
+                <TouchableOpacity 
+                  style={[styles.toggleButton, value === 'femea' && styles.toggleButtonActive]}
                   onPress={() => setValue('femea')}
                 >
-                  <RadioButton value="femea" />
-                  <Text>Fêmea</Text>
+                  <MaterialCommunityIcons name="gender-female" size={20} color={value === 'femea' ? '#FFF' : '#4A5568'} />
+                  <Text style={[styles.toggleText, value === 'femea' && styles.toggleTextActive]}>Fêmea</Text>
                 </TouchableOpacity>
-                </View>
-              </RadioButton.Group>
+              </View>
 
-              <RadioButton.Group
-                onValueChange={setCastrado}
-                value={castrado}
-              >
-                <View style={styles.radioContainer}>
-                <Text>Castrado:</Text>
-                <TouchableOpacity
-                  style={styles.radioAlign}
+              {/* Selector de Castrado */}
+              <Text style={styles.labelSelect}>O Pet é Castrado?</Text>
+              <View style={styles.toggleRow}>
+                <TouchableOpacity 
+                  style={[styles.toggleButton, castrado === 'sim' && styles.toggleButtonActive]}
                   onPress={() => setCastrado('sim')}
                 >
-                  <RadioButton value="sim" />
-                  <Text>Sim</Text>
+                  <MaterialCommunityIcons name="check-bold" size={18} color={castrado === 'sim' ? '#FFF' : '#4A5568'} />
+                  <Text style={[styles.toggleText, castrado === 'sim' && styles.toggleTextActive]}>Sim</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.radioAlign}
+                <TouchableOpacity 
+                  style={[styles.toggleButton, castrado === 'nao' && styles.toggleButtonActive]}
                   onPress={() => setCastrado('nao')}
                 >
-                  <RadioButton value="nao" />
-                  <Text>Não</Text>
+                  <MaterialCommunityIcons name="close" size={18} color={castrado === 'nao' ? '#FFF' : '#4A5568'} />
+                  <Text style={[styles.toggleText, castrado === 'nao' && styles.toggleTextActive]}>Não</Text>
                 </TouchableOpacity>
-                </View>
-              </RadioButton.Group>
+              </View>
+            </View>
             
           </Form>
         </ScrollView>
@@ -318,59 +331,31 @@ export default function Cadastro() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    
+  container: { flex: 1 },
+  image: { flex: 1, width: '100%' },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', paddingBottom: 40, paddingTop: 40 },
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    borderRadius: 20,
+    padding: 20,
+    width: 320,
+    alignSelf: 'center',
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  image: {
-    flex: 1,
-    width: '100%',
-    
-  },
-  scrollContent: {
-    flexGrow: 1, 
-    justifyContent: 'center',
-    paddingBottom: 40, 
-    paddingTop: 40
-  },
-  h2: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: "black",
-    marginTop: 25,
-    marginBottom: 5,
-    textAlign: 'center',
-  },
-  radioAlign: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  radioContainer : {
-    flexDirection: "row",
-    justifyContent: "flex-Start",
-    alignItems: "center",
-    marginTop: 6,
-  },
-  inputBox: {
-    borderColor: "black",
-    borderWidth: 2,
-    padding: 8,
-    borderRadius: 10,
-    width: 300,
-    color: 'black',
-    marginTop: 20,
-  },
-  passwordContainer: {
-    position: 'relative',
-    width: 300
-  },
-  seePassword: {
-    position: "absolute",
-    top: '50%',
-    transform: [{translateY: -5}],
-    right: 15,
-  },
-  errorStyle: {
-    color: "red"
-  }
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#2D3748', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', paddingBottom: 5 },
+  labelSelect: { fontSize: 14, fontWeight: '600', color: '#4A5568', marginTop: 15, marginBottom: 8 },
+  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
+  toggleButton: { flex: 1, flexDirection: 'row', height: 44, backgroundColor: '#EDF2F7', borderRadius: 10, justifyContent: 'center',  alignItems: 'center', marginHorizontal: 4, borderWidth: 1, borderColor: '#CBD5E0' },
+  toggleButtonActive: { backgroundColor: '#4A90E2', borderColor: '#4A90E2' },
+  toggleText: { fontSize: 14, fontWeight: '600', color: '#4A5568', marginLeft: 6 },
+  toggleTextActive: { color: '#FFFFFF' },
+  inputBox: { backgroundColor: '#FFF', borderColor: "#CBD5E0", borderWidth: 1, padding: 12, borderRadius: 10, width: '100%', color: 'black', marginTop: 12, fontSize: 16 },
+  passwordContainer: { position: 'relative', width: '100%' },
+  seePassword: { position: "absolute", right: 12, height: '100%', justifyContent: 'center', paddingTop: 10 },
+  errorStyle: { color: "#E53E3E", fontSize: 12, marginTop: 4, marginLeft: 4, fontWeight: '500' }
 });

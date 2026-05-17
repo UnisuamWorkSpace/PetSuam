@@ -5,6 +5,7 @@ import { StyleSheet, Text, View, ImageBackground,TextInput } from 'react-native'
 
 import Login from "./src/screens/Login.js";
 import Cadastro from "./src/screens/Cadastro.js";
+import Home from "./src/screens/Home.js";
 
 const Stack = createNativeStackNavigator();
 
@@ -14,6 +15,7 @@ export default function App() {
       <Stack.Navigator initialRouteName="Cadastro" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Cadastro" component={Cadastro} />
+        <Stack.Screen name="Home" component={Home} />
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>
